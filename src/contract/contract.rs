@@ -163,7 +163,21 @@ impl Contract {
                         {
                             Ok(t) => {
                                 PERFORMANCE_COUNTER.record_submit_block_stop(block_id);
-                                PERFORMANCE_COUNTER.record_gas_update(gas);
+                                //PERFORMANCE_COUNTER.record_gas_update(gas);
+                                match t {
+                                    Some(ref r) => {
+                                        match r.gas_used {
+                                            Some(g) => {
+                                                let gas = g.as_usize();
+                                                info!("*****************gas is {:?}", gas);
+                                                PERFORMANCE_COUNTER.record_gas_update(gas);
+                                                break;
+                                            },
+                                            None => {},
+                                        }
+                                    },
+                                    None => {},
+                                }
                            
                                 info!("get receipt {} takes {:?}", block_id, start.elapsed());
                             },

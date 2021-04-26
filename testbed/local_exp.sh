@@ -116,7 +116,7 @@ function start_local() {
 		side_nodes="$side_nodes -r $addr"
 	done
 	rm "nodes.txt"
-	start_time=$(gdate +%s.%N)
+	start_time=$(date +%s.%N)
 	echo $start_time
 	for (( i=1 ; i<=$total ; i++ )); do 
 		scale_id=$i
