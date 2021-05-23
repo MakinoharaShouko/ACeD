@@ -38,6 +38,7 @@ use chain::constants::{BLOCK_SIZE, BASE_SYMBOL_SIZE, RATE, UNDECODABLE_RATIO};
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use web3::types::{Address};
 use crate::experiment::snapshot::PERFORMANCE_COUNTER;
+use sharing::{ShamirSecretSharing, Sharing};
 
 pub struct Performer {
     task_source: Receiver<TaskRequest>,
@@ -314,7 +315,7 @@ impl Performer {
                     info!("{:?} receive token", self.addr);
                     self.scheduler_handler.send(scheduler::Signal::Data(token));
                 },
-                Message::ProposeBlock(proposer_addr, block_id, header) => {
+                Message::ProposeBlock(proposer_addr, block_id, header, sharer) => {
                     if self.scale_id > 0 {
                         //let (curr_slot, elapsed) = get_curr_slot(self.start_sec, self.start_millis, self.slot_time);
                         //info!("recv Propose_block {:?}", elapsed);
@@ -376,7 +377,17 @@ impl Performer {
 
                             let mut chunk_complete = false;
 
+                            let collectedShares = Vec::new();
+                            let mut reconstructed = None;
+
                             loop {
+                                // waiting for clients to send their shares
+                                match task.msg {
+                                    Message::SubmitShare(share) => {
+                                        collectedShares.push(share);
+                                        reconstructed = sharer.recontruct(collectedShares).unwrap();
+                                    }
+                                }
                                 match rx.recv() {
                                     Ok(chunk_reply) => {
                                         //info!(" {:?} get sample ", local_addr);
@@ -388,7 +399,7 @@ impl Performer {
                                     },
                                     Err(e) => info!("proposer error"),
                                 }
-                                if num_chunk > chunk_thresh {
+                                if (num_chunk > chunk_thresh) && (reconstructed == header) {
                                     // vote
                                     let header_str: String = hex::encode(&header);
                                     
@@ -441,6 +452,16 @@ impl Performer {
                         });
                     }
                 },
+                Message::ShamirBroadcast(shares) => {
+                    if self.scale_id <= 0 {
+                        // the side node gives its correspoding share
+                        let idx = self.sidenodes.iter().position(|&r| r == self.addr).unwrap();
+                        let response_msg = Message::SubmitShare(
+                            shares[idx]
+                            );
+                        peer_handle.write(response_msg);
+                    }
+                }
                 Message::MySign(header , sid, bid, sigx, sigy, scale_id) => {
                     if self.scale_id <= 0 {
                         continue;

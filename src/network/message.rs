@@ -13,6 +13,7 @@ use chain::decoder::{Symbol};
 use chain::big_array::{BigArray};
 use super::primitive::block::ContractState;
 use web3::types::Address;
+use sharing::{ShamirSecretSharing, Sharing};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Samples {
@@ -53,7 +54,9 @@ pub enum Message {
     SendTransaction(Vec<u8>), 
     PassToken(Token),
     //ip(pubkey) BlockHeader block_id //sender is client
-    ProposeBlock(SocketAddr, u64, Vec<u8>), 
+    ProposeBlock(SocketAddr, u64, Vec<u8>, Sharing<Share = Type>), // the oracle nodes will need the sharer to reconstruct
+    ShamirBroadcast(Vec<Sharing::ShamirShare>), // broadcast secret shares to other clients when proposing 
+    SubmitShare(Sharing::ShamirShare),
     ScaleReqChunks(SocketAddr, u64, u64), //(id, scale_id), // sender is scalenode
     ScaleReqChunksReply(SocketAddr, u64, Samples),
     MySign(String, u64, u64, String, String, u64),

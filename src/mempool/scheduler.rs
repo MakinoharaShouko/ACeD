@@ -26,6 +26,7 @@ use chain::decoder::{Symbol};
 use super::cmtda::Block as CMTBlock;
 use super::cmtda::H256 as CMTH256;
 use rand::Rng;
+use sharing::{ShamirSecretSharing, Sharing};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Token {
@@ -361,11 +362,22 @@ impl Scheduler {
         let header_bytes = serialize(&header);
         let header_message: Vec<u8> = header_bytes.clone().into();
         let hash_str = utils::hash_header_hex(&header_message);
+
+        // ADDED: create a Shamir secret sharing on symbols
+        let sharer = ShamirSecretSharing::new(self.sidenodes.len(), 
+            self.sidenodes.len() / 2, rand::thread_rng());
+        let shares = sharer.share(header_message.clone()).unwrap();
+        
         let message =  Message::ProposeBlock(
             self.addr, 
             new_block_id as u64, 
-            header_message); 
+            header_message,
+            sharer); 
         let signal = ServerSignal::ServerBroadcast(message);
+
+        // broadcast the shares to other clients
+        let shareMessage = Message::ShamirBroadcast(
+            shares);
 
         // last check before sending out the block
         let side_id = self.get_side_id();
